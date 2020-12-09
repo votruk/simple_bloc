@@ -3,6 +3,8 @@ library simple_bloc;
 import 'package:flutter/material.dart';
 
 abstract class SimpleBloc {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   BuildContext _context;
 
   void dispose();
@@ -10,20 +12,8 @@ abstract class SimpleBloc {
   void updateContext(final BuildContext context) {
     _context = context;
   }
-}
 
-abstract class SimpleBlocNavAndScaffold extends SimpleBloc with NavigationAware, ScaffoldAware {}
-
-abstract class SimpleBlocNav extends SimpleBloc with NavigationAware {}
-
-abstract class SimpleBlocScaffold extends SimpleBloc with ScaffoldAware {}
-
-mixin NavigationAware on SimpleBloc {
   NavigatorState get navigatorState => Navigator.of(_context);
-}
-
-mixin ScaffoldAware on SimpleBloc {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   GlobalKey<ScaffoldState> get scaffoldKey => _scaffoldKey;
 
@@ -44,7 +34,7 @@ class SimpleBlocProvider<T extends SimpleBloc> extends StatefulWidget {
   _SimpleBlocProviderState<T> createState() => _SimpleBlocProviderState<T>();
 
   static T of<T extends SimpleBloc>(BuildContext context) {
-    _BlocProviderInherited<T> provider =
+    final _BlocProviderInherited<T> provider =
         context.getElementForInheritedWidgetOfExactType<_BlocProviderInherited<T>>()?.widget as _BlocProviderInherited<T>;
     return provider?.bloc;
   }
@@ -79,6 +69,40 @@ class _BlocProviderInherited<T> extends InheritedWidget {
   bool updateShouldNotify(_BlocProviderInherited<T> oldWidget) => false;
 }
 
-extension BlocContext on BuildContext {
+extension SimpleBlocBuildContext on BuildContext {
   TBloc getBloc<TBloc extends SimpleBloc>() => SimpleBlocProvider.of<TBloc>(this);
+}
+
+abstract class SimpleBlocState<TWidget extends StatefulWidget, TBloc extends SimpleBloc> extends State<TWidget> {
+  TBloc bloc;
+
+  @protected
+  Widget buildWidget(final BuildContext context);
+
+  @protected
+  TBloc buildBloc();
+
+  /// use [buildWidget] method instead
+  @deprecated
+  @override
+  Widget build(final BuildContext context) {
+    return SimpleBlocProvider<TBloc>(
+      bloc: bloc,
+      child: buildWidget(context),
+    );
+  }
+
+  @mustCallSuper
+  @override
+  void initState() {
+    bloc = buildBloc();
+    super.initState();
+  }
+
+  @mustCallSuper
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    bloc.updateContext(context);
+  }
 }
